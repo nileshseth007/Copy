@@ -276,3 +276,46 @@ public class ImageProcessor {
         return flowMaps;
     }
 }
+
+import org.opencv.core.Mat;
+import org.opencv.core.Core;
+
+public class ImageProcessor {
+
+    public static Mat subjectDetection(Mat image, boolean faceEnable) {
+        System.out.println("Finding gaze attention mask...");
+        Mat attentionMask = getAttentionMask(image);
+        attentionMask = normalize(attentionMask);
+
+        if (!faceEnable) {
+            return attentionMask;
+        }
+
+        System.out.println("Finding head mask...");
+        Mat headMask = getHeadSegmentation(image);
+        headMask = normalize(headMask);
+
+        // Combine both masks: face_mask = attention_mask * (1 + head_mask)
+        Mat faceMask = new Mat();
+        Core.add(headMask, new Mat(headMask.size(), headMask.type(), Scalar.all(1)), headMask); // (1 + head_mask)
+        Core.multiply(attentionMask, headMask, faceMask); // attention_mask * (1 + head_mask)
+        
+        faceMask = normalize(faceMask);
+        return faceMask;
+    }
+
+    private static Mat getAttentionMask(Mat image) {
+        // TODO: Implement attention mask calculation
+        return new Mat(image.size(), image.type()); // Placeholder
+    }
+
+    private static Mat getHeadSegmentation(Mat image) {
+        // TODO: Implement head segmentation logic
+        return new Mat(image.size(), image.type()); // Placeholder
+    }
+
+    private static Mat normalize(Mat image) {
+        // TODO: Implement normalization function
+        return image; // Placeholder
+    }
+}
