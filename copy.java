@@ -1,3 +1,110 @@
+import org.opencv.core.*;
+import org.opencv.features2d.*;
+import org.opencv.imgproc.Imgproc;
+import java.util.ArrayList;
+import java.util.List;
+
+public class FeatureExtractor {
+
+    public static KeypointResult findKeypointsAndFeatures(Mat img) {
+        // Convert image to 8-bit and normalize
+        Mat image8bit = new Mat();
+        Core.normalize(img, image8bit, 0, 255, Core.NORM_MINMAX, CvType.CV_8U);
+
+        // Create SIFT detector
+        SIFT sift = SIFT.create();
+
+        // Detect keypoints and compute descriptors
+        MatOfKeyPoint keypoints = new MatOfKeyPoint();
+        Mat descriptors = new Mat();
+        sift.detectAndCompute(image8bit, new Mat(), keypoints, descriptors);
+
+        // Convert keypoints to a list of xy coordinates
+        List<Point> keypointList = new ArrayList<>();
+        for (KeyPoint kp : keypoints.toArray()) {
+            keypointList.add(kp.pt);
+        }
+
+        return new KeypointResult(keypointList, descriptors);
+    }
+
+    // Helper class to store keypoints and descriptors
+    public static class KeypointResult {
+        public List<Point> keypoints;
+        public Mat descriptors;
+
+        public KeypointResult(List<Point> keypoints, Mat descriptors) {
+            this.keypoints = keypoints;
+            this.descriptors = descriptors;
+        }
+    }
+}
+
+import org.opencv.core.*;
+import org.opencv.features2d.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class FeatureMatcher {
+
+    public static CorrespondenceResult findCorrespondences(Mat imgA, Mat imgB) {
+        // Step 1: Extract keypoints and descriptors
+        FeatureExtractor.KeypointResult featuresA = FeatureExtractor.findKeypointsAndFeatures(imgA);
+        FeatureExtractor.KeypointResult featuresB = FeatureExtractor.findKeypointsAndFeatures(imgB);
+
+        List<Point> keypointsA = featuresA.keypoints;
+        List<Point> keypointsB = featuresB.keypoints;
+        Mat descriptorsA = featuresA.descriptors;
+        Mat descriptorsB = featuresB.descriptors;
+
+        // Step 2: Match feature descriptors using BFMatcher (L2 Norm)
+        BFMatcher matcher = BFMatcher.create(NormTypes.NORM_L2, false);
+        List<MatOfDMatch> knnMatches = new ArrayList<>();
+        matcher.knnMatch(descriptorsA, descriptorsB, knnMatches, 2);
+
+        // Step 3: Lowe’s Ratio Test
+        double FEATURE_THRESHOLD = 0.2;
+        int MIN_NUMBER_MATCHES = 20;
+        List<Point> pointsA = new ArrayList<>();
+        List<Point> pointsB = new ArrayList<>();
+
+        for (MatOfDMatch matchSet : knnMatches) {
+            DMatch[] matches = matchSet.toArray();
+            if (matches.length >= 2) {
+                double ratio = matches[0].distance / matches[1].distance;
+                if (ratio < FEATURE_THRESHOLD) {
+                    pointsA.add(keypointsA.get(matches[0].queryIdx));
+                    pointsB.add(keypointsB.get(matches[0].trainIdx));
+                }
+            }
+        }
+
+        // Ensure minimum number of matches
+        if (pointsA.size() < MIN_NUMBER_MATCHES) {
+            pointsA.clear();
+            pointsB.clear();
+            for (MatOfDMatch matchSet : knnMatches.subList(0, Math.min(knnMatches.size(), MIN_NUMBER_MATCHES))) {
+                DMatch[] matches = matchSet.toArray();
+                pointsA.add(keypointsA.get(matches[0].queryIdx));
+                pointsB.add(keypointsB.get(matches[0].trainIdx));
+            }
+        }
+
+        return new CorrespondenceResult(pointsA, pointsB);
+    }
+
+    public static class CorrespondenceResult {
+        public List<Point> pointsA;
+        public List<Point> pointsB;
+
+        public CorrespondenceResult(List<Point> pointsA, List<Point> pointsB) {
+            this.pointsA = pointsA;
+            this.pointsB = pointsB;
+        }
+    }
+}
+
+
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.calib3d.Calib3d;
