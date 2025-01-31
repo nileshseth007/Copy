@@ -2,6 +2,45 @@ import org.opencv.core.Mat;
 import org.opencv.core.Core;
 import org.opencv.core.Scalar;
 
+public class ImageProcessor {
+
+    public static Mat[] composite(Mat sharpImage, Mat blurredImage, List<Mat> flowMaps, Mat subjectMask) {
+        // Calculate MFlow from flow maps and sharp image
+        Mat MFlow = calcMFlow(flowMaps, sharpImage);
+        MFlow = normalize(MFlow);
+
+        // Combine flow mask with subject mask using max operation
+        Mat flowFaceMask = new Mat(MFlow.size(), MFlow.type());
+        Core.max(MFlow, subjectMask, flowFaceMask);
+        flowFaceMask = normalize(flowFaceMask);
+
+        // Perform alpha blending between sharp and blurred images
+        Mat composite = alphaBlending(sharpImage, flowFaceMask, blurredImage);
+
+        return new Mat[]{composite, flowFaceMask};
+    }
+
+    private static Mat calcMFlow(List<Mat> flowMaps, Mat sharpImage) {
+        // TODO: Implement MFlow computation based on flow maps
+        return new Mat(sharpImage.size(), sharpImage.type(), Scalar.all(0)); // Placeholder
+    }
+
+    private static Mat normalize(Mat image) {
+        // TODO: Implement normalization function
+        return image; // Placeholder
+    }
+
+    private static Mat alphaBlending(Mat sharpImage, Mat mask, Mat blurredImage) {
+        Mat blendedImage = new Mat();
+        Core.addWeighted(sharpImage, 1.0, blurredImage, 1.0, 0, blendedImage);
+        return blendedImage;
+    }
+}
+
+import org.opencv.core.Mat;
+import org.opencv.core.Core;
+import org.opencv.core.Scalar;
+
 import java.util.ArrayList;
 import java.util.List;
 
