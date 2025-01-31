@@ -1,4 +1,95 @@
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.calib3d.Calib3d;
+import org.opencv.core.CvType;
+
+public class AlignImages {
+
+    public static Mat calculateTransform(MatOfPoint2f pointsA, MatOfPoint2f pointsB, String type) {
+        Mat transformMatrix = new Mat();
+
+        if ("rigid".equalsIgnoreCase(type)) {
+            // Estimate an affine transformation (rigid)
+            transformMatrix = Calib3d.estimateAffinePartial2D(pointsA, pointsB);
+
+            // Convert to a 3x3 matrix by appending [0,0,1] to make it homogeneous
+            Mat rigidTransform = new Mat(3, 3, CvType.CV_64F);
+            rigidTransform.put(0, 0, transformMatrix.get(0, 0));
+            rigidTransform.put(0, 1, transformMatrix.get(0, 1));
+            rigidTransform.put(0, 2, transformMatrix.get(0, 2));
+
+            rigidTransform.put(1, 0, transformMatrix.get(1, 0));
+            rigidTransform.put(1, 1, transformMatrix.get(1, 1));
+            rigidTransform.put(1, 2, transformMatrix.get(1, 2));
+
+            rigidTransform.put(2, 0, 0);
+            rigidTransform.put(2, 1, 0);
+            rigidTransform.put(2, 2, 1);
+
+            return rigidTransform;
+
+        } else if ("homography".equalsIgnoreCase(type)) {
+            // Estimate homography transformation
+            transformMatrix = Calib3d.findHomography(pointsA, pointsB, Calib3d.RANSAC, 5.0);
+        }
+
+        return transformMatrix;
+    }
+}
+
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.CvType;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.calib3d.Calib3d;
+
+public class AlignImages {
+
+    public static Mat warpImages(Mat A, Mat B, Mat transformM) {
+        int A_h = A.rows();
+        int A_w = A.cols();
+
+        // Define four corner points of A
+        MatOfPoint2f A_rect = new MatOfPoint2f(
+                new Point(0, 0),
+                new Point(0, A_w - 1),
+                new Point(A_h - 1, 0),
+                new Point(A_h - 1, A_w - 1)
+        );
+
+        // Apply perspective transform
+        MatOfPoint2f warpedA_rect = new MatOfPoint2f();
+        Core.perspectiveTransform(A_rect, warpedA_rect, transformM);
+
+        // Calculate translation
+        double dRow = -Math.min(
+                warpedA_rect.get(0, 0)[0], warpedA_rect.get(1, 0)[0],
+                warpedA_rect.get(2, 0)[0], warpedA_rect.get(3, 0)[0], 0
+        );
+
+        double dCol = -Math.min(
+                warpedA_rect.get(0, 1)[0], warpedA_rect.get(1, 1)[0],
+                warpedA_rect.get(2, 1)[0], warpedA_rect.get(3, 1)[0], 0
+        );
+
+        Mat translationM = Mat.eye(3, 3, CvType.CV_64F);
+        translationM.put(0, 2, dRow);
+        translationM.put(1, 2, dCol);
+
+        // Update transformM to include translation
+        Mat updatedTransformM = new Mat();
+        Core.gemm(translationM, transformM, 1, new Mat(), 0, updatedTransformM);
+
+        // Warp image
+        Mat warpedA = new Mat();
+        Imgproc.warpPerspective(A, warpedA, updatedTransformM, B.size());
+
+        return warpedA;
+    }
+}
+
+import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.core.CvType;
 import org.opencv.core.Point;
