@@ -1,4 +1,64 @@
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
+import org.opencv.core.CvType;
+import org.opencv.core.Point;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.calib3d.Calib3d;
+import java.util.ArrayList;
+import java.util.List;
+
+public class AlignImages {
+
+    public static List<Mat> alignImages(List<Mat> images) {
+        List<Mat> alignedImages = new ArrayList<>();
+        Mat rootImg = images.get(0).clone();
+        alignedImages.add(rootImg);
+
+        for (int i = 1; i < images.size(); i++) {
+            Mat img = images.get(i);
+
+            // Find correspondences between rootImg and img
+            MatOfPoint2f pointsRoot = new MatOfPoint2f();
+            MatOfPoint2f pointsImg = new MatOfPoint2f();
+            findCorrespondences(rootImg, img, pointsRoot, pointsImg);
+
+            // Compute transformation matrix (homography or affine)
+            Mat transformMatrix = calculateTransform(pointsImg, pointsRoot, "rigid");
+
+            // Warp image
+            Mat warpedImg = warpImages(img, rootImg, transformMatrix);
+            alignedImages.add(warpedImg);
+        }
+
+        return alignedImages;
+    }
+
+    private static void findCorrespondences(Mat img1, Mat img2, MatOfPoint2f points1, MatOfPoint2f points2) {
+        // TODO: Implement feature matching to find correspondences (SIFT, ORB, etc.)
+    }
+
+    private static Mat calculateTransform(MatOfPoint2f srcPoints, MatOfPoint2f dstPoints, String type) {
+        Mat transformMatrix = new Mat();
+        if ("rigid".equalsIgnoreCase(type)) {
+            transformMatrix = Calib3d.estimateAffine2D(srcPoints, dstPoints);
+        } else if ("affine".equalsIgnoreCase(type)) {
+            transformMatrix = Imgproc.getAffineTransform(srcPoints, dstPoints);
+        } else if ("homography".equalsIgnoreCase(type)) {
+            transformMatrix = Calib3d.findHomography(srcPoints, dstPoints);
+        }
+        return transformMatrix;
+    }
+
+    private static Mat warpImages(Mat src, Mat reference, Mat transformMatrix) {
+        Mat warpedImage = new Mat();
+        Imgproc.warpAffine(src, warpedImage, transformMatrix, reference.size());
+        return warpedImage;
+    }
+}
+
+
+import org.opencv.core.Mat;
 import org.opencv.core.Core;
 import org.opencv.core.Scalar;
 
