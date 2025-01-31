@@ -1,4 +1,55 @@
 import org.opencv.core.Mat;
+import org.opencv.core.CvType;
+import org.opencv.core.Size;
+import org.opencv.core.Core;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.video.Video;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ImageProcessor {
+
+    public static List<Mat> interpolateFrames(Mat frame1, Mat frame2, Mat inputFlowMap, int numFrames) {
+        List<Mat> inBetweenFrames = new ArrayList<>();
+
+        for (int t = 1; t < numFrames; t++) {
+            float scaleFactor = (float) t / numFrames;
+            Mat interpolatedFrame = generateOneFrame(frame1, inputFlowMap, scaleFactor);
+            inBetweenFrames.add(interpolatedFrame);
+        }
+
+        return inBetweenFrames;
+    }
+
+    private static Mat generateOneFrame(Mat frame, Mat flowMap, float t) {
+        int h = frame.rows();
+        int w = frame.cols();
+
+        // Scale the optical flow
+        Mat scaledFlow = new Mat();
+        Core.multiply(flowMap, new Mat(flowMap.size(), flowMap.type(), Scalar.all(t)), scaledFlow);
+
+        // Create mesh grid for pixel locations
+        Mat mapX = new Mat(h, w, CvType.CV_32FC1);
+        Mat mapY = new Mat(h, w, CvType.CV_32FC1);
+
+        for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+                double[] flow = scaledFlow.get(i, j);
+                mapX.put(i, j, j + flow[0]);
+                mapY.put(i, j, i + flow[1]);
+            }
+        }
+
+        // Warp the frame using remapping
+        Mat interpolatedFrame = new Mat();
+        Imgproc.remap(frame, interpolatedFrame, mapX, mapY, Imgproc.INTER_LINEAR);
+
+        return interpolatedFrame;
+    }
+}
+import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
