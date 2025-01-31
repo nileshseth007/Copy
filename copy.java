@@ -1,4 +1,47 @@
 import org.opencv.core.Mat;
+import org.opencv.core.Core;
+import org.opencv.core.Scalar;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ImageProcessor {
+
+    public static Mat blurImages(List<Mat> images, List<Mat> flowMaps) {
+        if (images == null || images.isEmpty()) {
+            return new Mat();  // Return empty matrix if no images
+        }
+
+        Mat blurredImage = images.get(0).clone();  // Initial image
+        double weight = 1.0;
+
+        for (int i = 1; i < images.size(); i++) {
+            // Generate in-between frames
+            int NUM_FRAMES = (1 << 4) - 1;  // 15 intermediate frames
+            List<Mat> inbetweenFrames = interpolateFrames(images.get(i - 1), images.get(i), flowMaps.get(i - 1), NUM_FRAMES);
+            inbetweenFrames.add(images.get(i));  // Add next frame
+
+            double newWeight = weight + inbetweenFrames.size();
+            Mat sumFrames = Mat.zeros(blurredImage.size(), blurredImage.type());
+
+            // Sum all intermediate frames
+            for (Mat frame : inbetweenFrames) {
+                Core.add(sumFrames, frame, sumFrames);
+            }
+
+            // Weighted blur: (weight * blurredImage + sumFrames) / newWeight
+            Mat weightedBlurredImage = new Mat();
+            Core.addWeighted(blurredImage, weight / newWeight, sumFrames, 1.0 / newWeight, 0, weightedBlurredImage);
+
+            blurredImage = weightedBlurredImage;
+            weight = newWeight;
+        }
+
+        return blurredImage;
+    }
+}
+
+import org.opencv.core.Mat;
 import org.opencv.core.CvType;
 import org.opencv.core.Size;
 import org.opencv.core.Core;
