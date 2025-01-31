@@ -220,3 +220,59 @@ public class ImageProcessor {
         return new Mat[]{sharpImage, subjectMask}; // Placeholder
     }
 }
+
+import org.opencv.core.Mat;
+import org.opencv.core.CvType;
+import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.video.Video;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ImageProcessor {
+
+    public static List<Mat> calculateOpticalFlow(List<Mat> images, String method, boolean fromCache, String flowmapDir) {
+        List<Mat> flowMaps = new ArrayList<>();
+
+        if (flowmapDir != null) {
+            flowmapDir = flowmapDir + "/" + method;
+            new File(flowmapDir).mkdirs(); // Create directory if not exists
+        }
+
+        // Load from cache if possible
+        File flowDir = new File(flowmapDir);
+        if (fromCache && flowDir.exists() && flowDir.isDirectory() && flowDir.list().length > 0) {
+            for (String filename : flowDir.list()) {
+                Mat flowmap = Imgcodecs.imread(new File(flowDir, filename).getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
+                if (!flowmap.empty()) {
+                    flowMaps.add(flowmap);
+                }
+            }
+            return flowMaps;
+        }
+
+        // If cache not available, compute optical flow
+        for (int i = 0; i < images.size() - 1; i++) {
+            Mat prevGray = new Mat();
+            Mat nextGray = new Mat();
+            Mat flow = new Mat(images.get(i).size(), CvType.CV_32FC2); // Optical flow map
+
+            // Convert images to grayscale
+            Imgproc.cvtColor(images.get(i), prevGray, Imgproc.COLOR_BGR2GRAY);
+            Imgproc.cvtColor(images.get(i + 1), nextGray, Imgproc.COLOR_BGR2GRAY);
+
+            // Compute optical flow using Farneback method
+            Video.calcOpticalFlowFarneback(prevGray, nextGray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+
+            // Save flow map
+            String flowFilename = String.format(flowmapDir + "/flow_%02d.png", i);
+            Imgcodecs.imwrite(flowFilename, flow);
+
+            flowMaps.add(flow);
+        }
+
+        return flowMaps;
+    }
+}
