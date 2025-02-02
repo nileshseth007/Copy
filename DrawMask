@@ -1,0 +1,16 @@
+import org.opencv.core.*;
+import org.opencv.imgproc.Imgproc;
+
+public class DrawMask {
+
+    /**
+     * Generates a black mask of the same size as the input image.
+     * 
+     * @param baseImg The input image.
+     * @return A black mask of the same size as baseImg.
+     */
+    public static Mat getMask(Mat baseImg) {
+        // Create a black mask with the same dimensions as the input image
+        return Mat.zeros(baseImg.size(), CvType.CV_8UC1);
+    }
+}
