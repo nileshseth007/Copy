@@ -97,5 +97,6 @@ public class ImageProcessor {
 // update in pipeline function
 // List<Mat> flowMaps = ImageProcessor.calculateOpticalFlow(images, method, false, flowmapDirectory);
 
-
+// for getMask
+//Mat subjectMask = DrawMask.getMask(sharpImage);
 
