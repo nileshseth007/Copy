@@ -84,7 +84,27 @@ public class Composite {
   
       return blended;
   }
+public static Mat poissonBlend(Mat source, Mat mask, Mat target) {
+    int rows = source.rows();
+    int cols = source.cols();
+    Mat blended = new Mat(source.size(), source.type());
 
+    Mat channel0 = new Mat(), channel1 = new Mat(), channel2 = new Mat();
+    List<Mat> sourceChannels = new ArrayList<>();
+    List<Mat> targetChannels = new ArrayList<>();
+    Core.split(source, sourceChannels);
+    Core.split(target, targetChannels);
+
+    Mat A = new Mat(); // Sparse matrix for solving
+    channel0 = poissonBlendChannel(sourceChannels.get(0), mask, targetChannels.get(0), null, true, false);
+    channel1 = poissonBlendChannel(sourceChannels.get(1), mask, targetChannels.get(1), A, false, false);
+    channel2 = poissonBlendChannel(sourceChannels.get(2), mask, targetChannels.get(2), A, false, false);
+
+    List<Mat> blendedChannels = Arrays.asList(channel0, channel1, channel2);
+    Core.merge(blendedChannels, blended);
+    
+    return blended;
+}
   public static Mat poissonBlendChannel(Mat source, Mat mask, Mat target, Mat A, boolean makeA, boolean isAlpha) {
       int numRows = source.rows();
       int numCols = source.cols();
